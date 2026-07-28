@@ -1,26 +1,37 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
+/* ── Deep Work Design Tokens ─────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0F172A; /* slate-950  — deep background          */
+  --foreground: #F8FAFC; /* slate-50   — primary text             */
+  --surface:    #1E293B; /* slate-800  — card surfaces            */
+  --border:     #334155; /* slate-700  — subtle borders           */
+  --muted:      #94A3B8; /* slate-400  — labels, hints            */
+  --clarity:    #2DD4BF; /* teal-400   — primary action / focus   */
+  --math:       #F472B6; /* pink-400   — math callouts / examples */
+  --danger:     #F87171; /* red-400    — errors                   */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-clarity: var(--clarity);
+  --color-math: var(--math);
+  --color-danger: var(--danger);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* scrollbar styling — keeps it dark */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--background); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
