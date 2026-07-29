@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { logger } from '@/lib/logger'
+import Link from 'next/link'
 import ChatPanel from '@/components/ChatPanel'
 import MCQQuiz from '@/components/MCQQuiz'
 
@@ -71,8 +72,15 @@ export default function Home() {
           </h1>
           <p className="text-muted text-sm mt-1">Study materials RAG search & mock testing</p>
         </div>
+        <div className="flex gap-2">
+            <Link
+              href="/guide"
+              className="px-4 py-2 border border-border text-muted rounded-lg text-sm hover:border-clarity hover:text-foreground transition-colors flex items-center gap-1.5"
+            >
+              Guide
+            </Link>
         {uploadedFiles.length > 0 && (
-          <div className="flex gap-2">
+          <>
             <button
               onClick={handleClearSession}
               className="px-4 py-2 border border-danger/50 text-danger rounded-lg text-sm hover:bg-danger/10 transition-colors"
@@ -84,8 +92,9 @@ export default function Home() {
               <span className="text-muted">Ingested:</span>
               <span className="font-semibold text-foreground">{uploadedFiles.length} File(s)</span>
             </div>
-          </div>
+          </>
         )}
+        </div>
       </header>
 
       {/* Main Two-Column Structure */}
