@@ -9,7 +9,7 @@ import MermaidRenderer from './MermaidRenderer'
 // Fix: Use 'node' and 'ref' destructuring correctly for v9 compatibility
 export default function MarkdownRenderer({ content }: { content: string }) {
   return (
-    <div className="prose prose-sm prose-invert max-w-none">
+    <div className="prose prose-sm prose-invert max-w-none prose-p:my-1 prose-headings:mt-3 prose-headings:mb-1 prose-li:my-0.5">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
