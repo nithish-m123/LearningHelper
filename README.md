@@ -1,36 +1,30 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Focal Engine - AI Exam Prep
 
-## Getting Started
+Focal Engine is a zero-login, zero-cost, privacy-first AI study assistant. It empowers students to upload lecture materials (PDF, PPT, PPTX), query them through a RAG-grounded chat, and test their knowledge with an interactive, timed MCQ Mock Exam simulator.
 
-First, run the development server:
+## 🚀 Key Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+*   **Zero-Login Anonymous Workflow:** Start studying immediately with no account creation. Sessions are scoped by an anonymous browser session and automatically purged after 24 hours via database cron jobs.
+*   **RAG-Grounded Chat:** Chat with your study materials. Answers are strictly grounded in your provided documents. If content is missing, the engine falls back to real-time internet search (Tavily AI) to fill the gaps.
+*   **Structured Visualizations:** 
+    *   **Mermaid.js:** Generates interactive process flow diagrams and charts directly from study material.
+    *   **KaTeX:** Renders university-level LaTeX math formulas and equations inline perfectly.
+*   **Mock Exam Simulator:** Generate dynamic, timed multiple-choice quizzes (MCQs) synthesized directly from your study materials with immediate scoring, detailed answer explanations, and weak-area analysis.
+*   **Zero-Local-CPU Processing:** Built on a cloud-native architecture. All heavy lifting (PDF parsing, LLM generation, vector search) is delegated to cloud services, ensuring lightning-fast performance even on low-end devices.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🛠 Tech Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+*   **Frontend:** Next.js 16 (App Router), React 19, Tailwind CSS v4
+*   **Streaming:** Native Server-Sent Events (SSE) via `groq-sdk`
+*   **RAG Engine:** Supabase pgvector, Xenova/Transformers.js (local 384-dim embeddings)
+*   **LLM:** Groq API (`llama-3.3-70b-versatile`)
+*   **PDF Extraction:** LlamaParse Cloud
+*   **Visualization:** Mermaid.js, KaTeX, Tailwind Typography
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 📖 Setup Guide
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Looking to run Focal Engine locally? See our comprehensive [Setup.md](./Setup.md) for step-by-step instructions.
