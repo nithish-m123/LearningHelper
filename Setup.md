@@ -32,7 +32,15 @@ Fill in the following details in `.env.local`:
 - `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase Project URL.
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase Anon Key.
 - `GROQ_API_KEY`: Your Groq API Key (get it from Groq console).
-- `LLAMA_CLOUD_API_KEY`: Your LlamaCloud API Key (for PDF extraction).
+- `LLAMA_CLOUD_API_KEY`: Your LlamaCloud API Key (for PDF/PPTX extraction).
+- `TAVILY_API_KEY`: Your Tavily API Key (for internet fallback search).
+
+## Where to get API Keys
+
+- **Supabase credentials**: Create a free project at [supabase.com](https://supabase.com/). Go to Project Settings -> API.
+- **Groq API Key**: Create an account at [console.groq.com](https://console.groq.com/) and generate an API key in the keys tab.
+- **LlamaCloud Key**: Visit [cloud.llamaindex.ai](https://cloud.llamaindex.ai/) to get a free extraction token.
+- **Tavily API Key**: Get a search API key from [tavily.com](https://tavily.com/).
 
 ### 4. Supabase Setup
 - Go to the Supabase project **SQL Editor**.
