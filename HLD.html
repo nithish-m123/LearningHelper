@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Exam Prep — High Level Design</title>
+  <style>
+    :root {
+      --bg: #0F172A; --surface: #1E293B; --border: #334155;
+      --text: #F8FAFC; --muted: #94A3B8; --clarity: #2DD4BF;
+      --math: #F472B6; --danger: #F87171; --warn: #FBBF24;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; line-height: 1.7; padding: 2rem; }
+    nav { display: flex; gap: 1.5rem; flex-wrap: wrap; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: 2.5rem; }
+    nav a { color: var(--muted); text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: color .2s; }
+    nav a:hover, nav a.active { color: var(--clarity); }
+    h1 { font-size: 2rem; font-weight: 800; margin-bottom: 0.4rem; }
+    h1 span { color: var(--clarity); }
+    .meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 3rem; }
+    h2 { font-size: 1.3rem; font-weight: 700; color: var(--clarity); margin: 2.5rem 0 1rem; border-left: 3px solid var(--clarity); padding-left: 0.75rem; }
+    h3 { font-size: 1rem; font-weight: 700; color: var(--math); margin: 1.5rem 0 0.5rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { background: var(--border); color: var(--clarity); text-align: left; padding: 0.75rem 1rem; font-weight: 700; }
+    td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+    .badge-teal  { background: rgba(45,212,191,.15); color: var(--clarity); }
+    .badge-pink  { background: rgba(244,114,182,.15); color: var(--math); }
+    .badge-warn  { background: rgba(251,191,36,.15);  color: var(--warn); }
+    .badge-red   { background: rgba(248,113,113,.15); color: var(--danger); }
+    pre { background: #0a0f1e; border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; overflow-x: auto; font-family: ui-monospace, monospace; font-size: 0.82rem; color: #a5f3fc; line-height: 1.6; }
+    p { color: var(--muted); margin-bottom: 0.75rem; }
+    ul { color: var(--muted); padding-left: 1.5rem; }
+    li { margin-bottom: 0.4rem; }
+    .pattern-tag { background: rgba(45,212,191,.1); border: 1px solid rgba(45,212,191,.3); color: var(--clarity); font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 600; margin-right: 0.4rem; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="ProjectPlan.html">Project Plan</a>
+    <a href="HLD.html" class="active">HLD</a>
+    <a href="LLD.html">LLD</a>
+    <a href="Implementation.html">Implementation Guide</a>
+    <a href="ImplementationStatus.html">Status Tracker</a>
+  </nav>
+
+  <h1>AI Exam Prep <span>Focal Engine</span></h1>
+  <p class="meta">High Level Design (HLD) · Version 3.0 · July 2026 · Final Year Project</p>
+
+  <h2>1. Purpose &amp; Scope</h2>
+  <div class="card">
+    <p>A web application that lets any college student upload their course materials (PDFs, PPTs) and immediately generates:</p>
+    <ul>
+      <li>Structured topic explanations with math (KaTeX) and flowchart (Mermaid.js) visualizations</li>
+      <li>RAG-grounded answers scoped strictly to the uploaded material</li>
+      <li>Dynamic search mapping to the internet (Tavily AI) if course slides are empty or incomplete</li>
+      <li>Timed MCQ mock exams with score analysis and weak-area detection</li>
+      <li>Dedicated user guide page (/guide) explaining onboarding workflow steps</li>
+    </ul>
+    <p style="margin-top:1rem;"><strong>Constraints:</strong> Zero authentication, zero cost, zero local CPU/GPU usage for AI operations, temporary sessions self-destruct after 24 hours.</p>
+  </div>
+
+  <h2>2. Design Patterns Applied</h2>
+  <div class="card">
+    <table>
+      <tr><th>Pattern</th><th>Where Applied</th><th>Why</th></tr>
+      <tr>
+        <td><span class="pattern-tag">Repository Pattern</span></td>
+        <td><code>lib/supabase.ts</code></td>
+        <td>All data access goes through one typed interface. Swap database without touching routes.</td>
+      </tr>
+      <tr>
+        <td><span class="pattern-tag">Facade Pattern</span></td>
+        <td><code>lib/session.ts</code></td>
+        <td>Single entry point for all session operations (create, read, delete). Routes never touch cookies directly.</td>
+      </tr>
+      <tr>
+        <td><span class="pattern-tag">Strategy Pattern</span></td>
+        <td><code>components/MarkdownRenderer.tsx</code></td>
+        <td>Auto-detects whether to render Mermaid, KaTeX, dynamic SVG charts, or plain markdown based on AI output content type.</td>
+      </tr>
+      <tr>
+        <td><span class="pattern-tag">Stream Pipeline</span></td>
+        <td>Native Fetch/SSE</td>
+        <td>Browser and API routes communicate via native readable streams for zero-latency streaming text without third-party abstraction. Replaces AI SDK bound streams.</td>
+      </tr>
+      <tr>
+        <td><span class="pattern-tag">Singleton Pattern</span></td>
+        <td><code>lib/gemini.ts</code> (embedder)</td>
+        <td>Transformer.js pipeline loads the model once; all calls reuse the same instance.</td>
+      </tr>
+      <tr>
+        <td><span class="pattern-tag">Factory Pattern</span></td>
+        <td><code>lib/logger.ts</code> (Thin formatter)</td>
+        <td>Unified log factory outputs structured `[TIMESTAMP] LEVEL: Message` strings.</td>
+      </tr>
+    </table>
+  </div>
+
+  <h2>3. System Architecture Overview</h2>
+  <div class="card">
+    <pre>
+┌─────────────────────────────────────────────────────────────┐
+│                        Browser (Next.js)                     │
+│                                                             │
+│  ┌──────────────┐  ┌────────────────┐  ┌─────────────────┐ │
+│  │  Upload Zone │  │   Chat Panel   │  │   MCQ Exam UI   │ │
+│  │  (Drag+Drop) │  │ (AI SDK Stream)│  │  (Score+Weak)   │ │
+│  └──────┬───────┘  └───────┬────────┘  └────────┬────────┘ │
+│         │                  │                     │          │
+│  ┌──────▼──────────────────▼─────────────────────▼────────┐ │
+│  │               Session Manager (lib/session.ts)          │ │
+│  │    UUID in cookie → scopes all API calls per session    │ │
+│  └──────┬──────────────────┬─────────────────────┬────────┘ │
+└─────────┼──────────────────┼─────────────────────┼──────────┘
+          │                  │                     │
+          ▼                  ▼                     ▼
+  /api/upload          /api/explain           /api/quiz
+  /api/session         /api/visualize         /api/session/delete
+          │                  │                     │
+          └──────────────────┼─────────────────────┘
+                             │
+              ┌──────────────▼──────────────┐
+              │     Cloud Services (Zero CPU) │
+              │                             │
+              │  LlamaParse  →  Markdown     │
+              │  Tavily Search →  Web Snips  │
+              │  Xenova WASM →  Embeddings   │
+              │  Groq API    →  Stream Text  │
+              │  Supabase    →  pgvector DB  │
+              └──────────────┬──────────────┘
+                             │
+              ┌──────────────▼──────────────┐
+              │        Supabase Tables       │
+              │                             │
+              │  document_chunks (+ session) │
+              │  visitor_analytics           │
+              │  [24h cron auto-cleanup]     │
+              └─────────────────────────────┘</pre>
+  </div>
+
+  <h2>4. Anonymous Session Architecture</h2>
+  <div class="card">
+    <h3>How It Works</h3>
+    <p>No login. No passwords. Just a UUID cookie that identifies "this browser tab session."</p>
+    <pre>
+1. User opens app
+   → Browser checks cookie: "exam-session-id"
+   → If missing: generate uuid(), store in cookie (24h expiry)
+   → POST /api/session to log the new visitor in visitor_analytics
+
+2. User uploads PDF
+   → Upload request includes sessionId in header (X-Session-Id)
+   → All document_chunks rows tagged: { session_id: "uuid-here" }
+
+3. User searches a topic
+   → /api/explain receives sessionId
+   → Supabase query: WHERE session_id = $sessionId  ← isolation!
+   → No other session can read your chunks
+
+4. Session expires (24h)
+   → Supabase cron (pg_cron): DELETE chunks WHERE created_at < NOW() - INTERVAL '24h'
+   → User's cookie also expires in browser automatically
+
+5. User clicks "Delete Session"
+   → POST /api/session/delete with sessionId
+   → Immediate DELETE on Supabase for that session_id</pre>
+
+    <h3>Data Isolation Guarantee</h3>
+    <p>Every Supabase query on <code>document_chunks</code> is scoped with <code>WHERE session_id = ?</code>. User A's sessionId cannot access User B's chunks — the WHERE clause makes it structurally impossible.</p>
+  </div>
+
+  <h2>5. Visualization &amp; Mathematics Strategy</h2>
+  <div class="card">
+    <table>
+      <tr><th>Content Type</th><th>Tool</th><th>How</th></tr>
+      <tr>
+        <td>Flowcharts, Diagrams, Process Flows</td>
+        <td><span class="badge badge-teal">Mermaid.js</span></td>
+        <td>AI outputs a Mermaid code block (e.g. <code>```mermaid graph TD...</code>). Frontend detects and renders it as an SVG diagram.</td>
+      </tr>
+      <tr>
+        <td>Math Equations, Formulas</td>
+        <td><span class="badge badge-pink">KaTeX</span></td>
+        <td>AI wraps math in <code>$...$</code> (inline) or <code>$$...$$</code> (block). Rendered dynamically in page layout via KaTeX styles.</td>
+      </tr>
+      <tr>
+        <td>Plotting Math Functions</td>
+        <td><span class="badge badge-warn">Dynamic SVG Charts</span></td>
+        <td>AI outputs a JSON segment inside ````chart` block (e.g. coordinates, bars). Frontend Strategy router converts it to lightweight animated inline SVG charts.</td>
+      </tr>
+    </table>
+  </div>
+
+  <h2>6. Caching Architecture &amp; Streaming</h2>
+  <div class="card">
+    <pre>
+Query: "explain binary search"
+           │
+           ▼
+    AI SDK useChat connection
+           │
+           ▼
+    SSE Stream established
+    ┌──────────────────────┐
+    ▼                      ▼
+  /api/explain           Groq API (Llama-3.3)
+  (RAG + Web Context)   (Pipes chunks back)
+    │                      │
+    ▼                      ▼
+  NextResponse Stream    Client Stream Reader
+    │                      │
+    └───────────┬──────────┘
+                ▼
+  Auto-rendered to UI in real-time (typewriter effect)</pre>
+    <p>We swap SWR pull-caching for a native client-side LocalStorage persist strategy in <code>useChat</code>. Stream chunking bypasses head latency completely.</p>
+  </div>
+</body>
+</html>

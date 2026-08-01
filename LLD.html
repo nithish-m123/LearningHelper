@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Exam Prep — Low Level Design</title>
+  <style>
+    :root {
+      --bg: #0F172A; --surface: #1E293B; --border: #334155;
+      --text: #F8FAFC; --muted: #94A3B8; --clarity: #2DD4BF;
+      --math: #F472B6; --danger: #F87171; --warn: #FBBF24;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; line-height: 1.7; padding: 2rem; }
+    nav { display: flex; gap: 1.5rem; flex-wrap: wrap; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: 2.5rem; }
+    nav a { color: var(--muted); text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: color .2s; }
+    nav a:hover, nav a.active { color: var(--clarity); }
+    h1 { font-size: 2rem; font-weight: 800; margin-bottom: 0.4rem; }
+    h1 span { color: var(--clarity); }
+    .meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 3rem; }
+    h2 { font-size: 1.3rem; font-weight: 700; color: var(--clarity); margin: 2.5rem 0 1rem; border-left: 3px solid var(--clarity); padding-left: 0.75rem; }
+    h3 { font-size: 1rem; font-weight: 700; color: var(--math); margin: 1.5rem 0 0.5rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th { background: var(--border); color: var(--clarity); text-align: left; padding: 0.75rem 1rem; font-weight: 700; }
+    td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    pre { background: #0a0f1e; border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; overflow-x: auto; font-family: ui-monospace, monospace; font-size: 0.82rem; color: #a5f3fc; line-height: 1.6; margin: 0.75rem 0; }
+    code { font-family: ui-monospace, monospace; background: rgba(45,212,191,.1); border: 1px solid rgba(45,212,191,.2); padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.85em; color: var(--clarity); }
+    p { color: var(--muted); margin-bottom: 0.75rem; }
+    ul { color: var(--muted); padding-left: 1.5rem; }
+    li { margin-bottom: 0.4rem; }
+    .file-path { color: var(--warn); font-weight: 700; font-size: 0.9rem; margin-bottom: 0.5rem; display: block; }
+    .method { color: var(--clarity); font-weight: 700; }
+    .type { color: var(--math); }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="ProjectPlan.html">Project Plan</a>
+    <a href="HLD.html">HLD</a>
+    <a href="LLD.html" class="active">LLD</a>
+    <a href="Implementation.html">Implementation Guide</a>
+    <a href="ImplementationStatus.html">Status Tracker</a>
+  </nav>
+
+  <h1>AI Exam Prep <span>Focal Engine</span></h1>
+  <p class="meta">Low Level Design (LLD) · Version 2.0 · July 2026 · Final Year Project</p>
+
+  <!-- ── 1. Folder Structure ──────────────────────────────────────── -->
+  <h2>1. Full Project Folder Structure</h2>
+  <div class="card">
+    <pre>
+ai-exam-prep/
+├── app/
+│   ├── globals.css              ← Design tokens (Deep Work palette)
+│   ├── layout.tsx               ← Root layout (SWR Provider, KaTeX CSS)
+│   ├── page.tsx                 ← Landing: Upload + Chat + Session
+│   └── api/
+│       ├── session/
+│       │   ├── route.ts         ← POST: create session, log visitor
+│       │   └── delete/route.ts  ← POST: delete session + all its chunks
+│       ├── upload/route.ts      ← POST: LlamaParse → embed → store
+│       ├── chat/route.ts        ← POST: RAG → Groq (SSE Stream)
+│       └── quiz/route.ts        ← POST: Groq → JSON MCQs
+├── hooks/
+│   └── useStreamChat.ts         ← Custom hook: SSE read logic
+├── lib/
+│   ├── session.ts               ← Facade: session read/write/delete (cookie)
+│   ├── supabase.ts              ← Repository: typed DB client
+│   ├── gemini.ts                ← Singleton: Xenova embedder
+│   ├── chunk.ts                 ← Pure fn: markdown → chunks[]
+│   └── logger.ts                ← Factory: structured JSON logger
+├── components/
+│   ├── ChatPanel.tsx            ← SWR-cached chat with visualization
+│   ├── MCQQuiz.tsx              ← Timed exam component
+│   ├── MermaidRenderer.tsx      ← Strategy: renders Mermaid SVG
+│   ├── MarkdownRenderer.tsx     ← Detects & routes math/mermaid/code
+│   └── DeleteSessionButton.tsx  ← Calls /api/session/delete
+└── .env.local</pre>
+  </div>
+
+  <!-- ── 2. Database Schema ────────────────────────────────────────── -->
+  <h2>2. Database Schema (Supabase)</h2>
+  <div class="card">
+    <h3>Table: document_chunks</h3>
+    <pre>
+CREATE TABLE document_chunks (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id    text NOT NULL,          -- UUID from cookie, NOT a user account
+  document_name text NOT NULL,
+  chunk_index   int  NOT NULL,
+  content       text NOT NULL,
+  embedding     vector(384),            -- Xenova all-MiniLM-L6-v2 output
+  created_at    timestamp DEFAULT NOW()
+);
+
+-- Index for fast session-scoped queries
+CREATE INDEX idx_chunks_session ON document_chunks(session_id);
+
+-- Row-Level Security: each session sees only its own chunks
+ALTER TABLE document_chunks ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "session_isolation" ON document_chunks
+  USING (session_id = current_setting('app.session_id', true));</pre>
+
+    <h3>Table: visitor_analytics</h3>
+    <pre>
+CREATE TABLE visitor_analytics (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id text NOT NULL,    -- anonymous UUID only, no PII
+  created_at timestamp DEFAULT NOW()
+);</pre>
+
+    <h3>Function: match_chunks (updated for session isolation)</h3>
+    <pre>
+CREATE OR REPLACE FUNCTION match_chunks (
+  query_embedding  vector(384),
+  session_id_param text,
+  match_threshold  float,
+  match_count      int
+)
+RETURNS TABLE (id uuid, document_name text, content text, similarity float)
+LANGUAGE sql STABLE AS $$
+  SELECT id, document_name, content,
+         1 - (embedding &lt;=&gt; query_embedding) AS similarity
+  FROM   document_chunks
+  WHERE  session_id = session_id_param
+    AND  1 - (embedding &lt;=&gt; query_embedding) > match_threshold
+  ORDER  BY embedding &lt;=&gt; query_embedding
+  LIMIT  match_count;
+$$;</pre>
+
+    <h3>Cron Job: 24h Auto Cleanup</h3>
+    <pre>
+-- Enable pg_cron extension in Supabase Dashboard → Extensions
+SELECT cron.schedule(
+  'cleanup-old-sessions',
+  '0 * * * *',   -- runs every hour
+  $$
+    DELETE FROM document_chunks
+    WHERE created_at &lt; NOW() - INTERVAL '24 hours';
+
+    DELETE FROM visitor_analytics
+    WHERE created_at &lt; NOW() - INTERVAL '30 days';
+  $$
+);</pre>
+  </div>
+
+  <!-- ── 3. lib/session.ts ─────────────────────────────────────────── -->
+  <h2>3. Session Facade — <code>lib/session.ts</code></h2>
+  <div class="card">
+    <p>Single entry point for all session operations. Routes never touch cookies directly (Facade Pattern).</p>
+    <pre>
+// lib/session.ts
+import { cookies } from 'next/headers'
+import { randomUUID } from 'crypto'
+
+const SESSION_COOKIE = 'exam-session-id'
+const TTL_SECONDS = 60 * 60 * 24 // 24 hours
+
+export function getSessionId(): string | null {
+  return cookies().get(SESSION_COOKIE)?.value ?? null
+}
+
+export function getOrCreateSessionId(): string {
+  const existing = getSessionId()
+  if (existing) return existing
+  const id = randomUUID()
+  cookies().set(SESSION_COOKIE, id, {
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: TTL_SECONDS,
+  })
+  return id
+}
+
+export function clearSessionCookie(): void {
+  cookies().delete(SESSION_COOKIE)
+}</pre>
+  </div>
+
+  <!-- ── 4. API Route Contracts ────────────────────────────────────── -->
+  <h2>4. API Route Contracts</h2>
+  <div class="card">
+    <table>
+      <tr><th>Route</th><th>Method</th><th>Request Body</th><th>Response</th></tr>
+      <tr>
+        <td><code>/api/session</code></td>
+        <td>POST</td>
+        <td>—</td>
+        <td><code>{ sessionId: string }</code> + sets cookie + logs visitor</td>
+      </tr>
+      <tr>
+        <td><code>/api/session/delete</code></td>
+        <td>POST</td>
+        <td>—</td>
+        <td><code>{ deleted: number }</code> rows deleted + clears cookie</td>
+      </tr>
+      <tr>
+        <td><code>/api/upload</code></td>
+        <td>POST</td>
+        <td><code>FormData { file }</code></td>
+        <td><code>{ document: string, chunks: number }</code></td>
+      </tr>
+      <tr>
+        <td><code>/api/chat</code></td>
+        <td>POST</td>
+        <td><code>{ query: string }</code></td>
+        <td><code>text/event-stream</code> (SSE)</td>
+      </tr>
+      <tr>
+        <td><code>/api/quiz</code></td>
+        <td>POST</td>
+        <td><code>{ topic: string, count: number }</code></td>
+        <td><code>{ questions: MCQ[] }</code></td>
+      </tr>
+    </table>
+
+    <h3>MCQ[] Type</h3>
+    <pre>
+type MCQ = {
+  question: string
+  options: [string, string, string, string]
+  correctIndex: 0 | 1 | 2 | 3
+  explanation: string
+}</pre>
+  </div>
+
+  <!-- ── 5. Visualization Renderer Strategy ───────────────────────── -->
+  <h2>5. Visualization Renderer — Strategy Pattern</h2>
+  <div class="card">
+    <p><code>MarkdownRenderer.tsx</code> uses a Strategy pattern to delegate rendering based on content type detected in AI markdown streams.</p>
+    <pre>
+// components/MarkdownRenderer.tsx
+export default function MarkdownRenderer({ content }: { content: string }) {
+  // 1. Parse markdown for special block patterns
+  const blocks = parseBlocks(content)
+
+  return blocks.map(block => {
+    // 2. Route to specialized Renderer component (Strategy)
+    if (block.type === 'mermaid') return &lt;MermaidRenderer code={block.code} /&gt;
+    if (block.type === 'math')    return &lt;KaTeXRenderer math={block.code} /&gt;
+    if (block.type === 'chart')   return &lt;ChartRenderer data={block.json} /&gt;
+    return &lt;div&gt;{block.text}&lt;/div&gt;
+  })
+}</pre>
+    <p><code>ChartRenderer.tsx</code> takes JSON data in a <code>```chart</code> block and generates a dynamic, thin-wrapper SVG without heavy chart library dependencies.</p>
+  </div>
+
+  <!-- ── 6. SSE Streaming — Custom Hook ───────────────────────────── -->
+  <h2>6. SSE Streaming — Custom Hook</h2>
+  <div class="card">
+    <pre>
+// hooks/useStreamChat.ts
+export function useStreamChat() {
+  const [messages, setMessages] = useState&lt;Message[]&gt;([])
+  const [isLoading, setIsLoading] = useState(false)
+
+  const sendMessage = async (content: string) =&gt; {
+    setIsLoading(true)
+    const response = await fetch('/api/chat', {
+        method: 'POST',
+        body: JSON.stringify({ messages: [...messages, { role: 'user', content }] })
+    })
+
+    // Read ReadableStream from response.body
+    const reader = response.body?.getReader()
+    const decoder = new TextDecoder()
+    // Loop → reader.read() → setMessages(prev =&gt; ...)
+  }
+  return { messages, sendMessage, isLoading }
+}</pre>
+  const { data, isLoading } = useSWR(
+    query ? ['/api/explain', { query, sessionId }] : null,
+    fetcher,
+    { revalidateOnFocus: false }   // don't re-fetch on tab switch
+  )
+
+  return ...
+}</pre>
+  </div>
+
+  <!-- ── 7. Error Handling ──────────────────────────────────────────── -->
+  <h2>7. Error Handling Contract</h2>
+  <div class="card">
+    <table>
+      <tr><th>Layer</th><th>How Error is Handled</th></tr>
+      <tr><td>API Routes</td><td>All wrapped in try/catch. Always return <code>{ error: string }</code> with correct HTTP status. Never return raw exceptions.</td></tr>
+      <tr><td>LlamaParse timeout</td><td>Poll max 24×5s = 120s. If no result: 500 with clear message. Frontend shows retry button.</td></tr>
+      <tr><td>Groq API failure</td><td>Catch, log via <code>logger.error()</code>, return 500. Frontend shows friendly error card.</td></tr>
+      <tr><td>Session missing</td><td>API reads session cookie; if absent, returns 400 "Session not found".</td></tr>
+      <tr><td>Frontend</td><td>SWR <code>error</code> state triggers a red error card with the error message.</td></tr>
+    </table>
+  </div>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Exam Prep — Project Plan</title>
+  <style>
+    :root {
+      --bg: #0F172A; --surface: #1E293B; --border: #334155;
+      --text: #F8FAFC; --muted: #94A3B8; --clarity: #2DD4BF;
+      --math: #F472B6; --danger: #F87171; --warn: #FBBF24;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; line-height: 1.7; padding: 2rem; }
+    nav { display: flex; gap: 1.5rem; flex-wrap: wrap; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: 2.5rem; }
+    nav a { color: var(--muted); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+    nav a:hover, nav a.active { color: var(--clarity); }
+    h1 { font-size: 2rem; font-weight: 800; margin-bottom: 0.4rem; }
+    h1 span { color: var(--clarity); }
+    .meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 3rem; }
+    h2 { font-size: 1.2rem; font-weight: 700; color: var(--clarity); margin: 2rem 0 1rem; border-left: 3px solid var(--clarity); padding-left: 0.75rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th { background: var(--border); color: var(--clarity); text-align: left; padding: 0.6rem 1rem; font-weight: 700; }
+    td { padding: 0.55rem 1rem; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--muted); }
+    tr:last-child td { border-bottom: none; }
+    td strong { color: var(--text); }
+    .tag { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; margin-right: 0.4rem; }
+    .tag-teal { background: rgba(45,212,191,.15); color: var(--clarity); }
+    .tag-pink  { background: rgba(244,114,182,.15); color: var(--math); }
+    .tag-warn  { background: rgba(251,191,36,.15);  color: var(--warn); }
+    ul { color: var(--muted); padding-left: 1.5rem; }
+    li { margin-bottom: 0.4rem; }
+    p { color: var(--muted); margin-bottom: 0.6rem; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="ProjectPlan.html" class="active">Project Plan</a>
+    <a href="HLD.html">HLD</a>
+    <a href="LLD.html">LLD</a>
+    <a href="Implementation.html">Implementation Guide</a>
+    <a href="ImplementationStatus.html">Status Tracker</a>
+  </nav>
+
+  <h1>AI Exam Prep <span>Focal Engine</span></h1>
+  <p class="meta">Final Year Project Plan · Version 2.0 · July 2026</p>
+
+  <h2>1. Project Vision</h2>
+  <div class="card">
+    <p>A zero-login, zero-cost web application where any college student uploads their course materials (PDF/PPT) and immediately gets structured AI-powered study assistance — topic explanations with visualizations, RAG-grounded Q&amp;A, and timed MCQ mock exams — all isolated to their anonymous browser session which auto-deletes after 24 hours.</p>
+    <span class="tag tag-teal">Zero-Cost Cloud Architecture</span>
+    <span class="tag tag-teal">Auth-Free Anonymous Sessions</span>
+    <span class="tag tag-teal">RAG + pgvector</span>
+    <span class="tag tag-pink">Mermaid + KaTeX Visualization</span>
+    <span class="tag tag-warn">SWR Caching</span>
+  </div>
+
+  <h2>2. Architecture Overview</h2>
+  <div class="card">
+    <table>
+      <tr><th>Layer</th><th>Technology</th><th>Purpose</th></tr>
+      <tr><td><strong>Frontend</strong></td><td>Next.js 16 + Tailwind CSS v4</td><td>UI, routing, API routes</td></tr>
+      <tr><td><strong>Session</strong></td><td>UUID cookie (httpOnly, 24h TTL)</td><td>Auth-free user isolation</td></tr>
+      <tr><td><strong>Caching</strong></td><td>SWR (React)</td><td>Instant repeat query answers</td></tr>
+      <tr><td><strong>PDF Parsing</strong></td><td>LlamaParse Cloud API</td><td>PDF/PPT → clean Markdown</td></tr>
+      <tr><td><strong>Embeddings</strong></td><td>Xenova/all-MiniLM-L6-v2 (WASM)</td><td>Text → 384-dim vectors, zero GPU</td></tr>
+      <tr><td><strong>Vector DB</strong></td><td>Supabase pgvector</td><td>Semantic chunk storage + search</td></tr>
+      <tr><td><strong>LLM</strong></td><td>Groq API (llama-3.3-70b-versatile)</td><td>Explanations, quiz generation</td></tr>
+      <tr><td><strong>Visualization</strong></td><td>Mermaid.js + KaTeX + Prism.js</td><td>Diagrams, math, code blocks</td></tr>
+      <tr><td><strong>Analytics</strong></td><td>Supabase visitor_analytics table</td><td>Session count tracking (no PII)</td></tr>
+      <tr><td><strong>Cleanup</strong></td><td>Supabase pg_cron</td><td>Auto-delete chunks after 24h</td></tr>
+      <tr><td><strong>Hosting</strong></td><td>Vercel</td><td>Serverless deployment</td></tr>
+    </table>
+  </div>
+
+  <h2>3. Core Features (v1 MVP)</h2>
+  <div class="card">
+    <table>
+      <tr><th>#</th><th>Feature</th><th>Status</th></tr>
+      <tr><td>1</td><td><strong>Anonymous Session</strong> — UUID cookie, 24h TTL, auto-cleanup cron, manual delete button</td><td><span class="tag tag-warn">Planned</span></td></tr>
+      <tr><td>2</td><td><strong>Document Upload</strong> — LlamaParse → chunk → embed → store in pgvector per session</td><td><span class="tag tag-teal">Done ✓</span></td></tr>
+      <tr><td>3</td><td><strong>RAG Chat</strong> — SWR-cached Q&amp;A, session-scoped retrieval, Groq explanation</td><td><span class="tag tag-teal">Done ✓</span></td></tr>
+      <tr><td>4</td><td><strong>Visualization</strong> — Mermaid diagrams, KaTeX math, Prism code from AI output</td><td><span class="tag tag-warn">Planned</span></td></tr>
+      <tr><td>5</td><td><strong>MCQ Exam Simulator</strong> — Timed quiz, score, weak-area analysis</td><td><span class="tag tag-warn">Planned</span></td></tr>
+      <tr><td>6</td><td><strong>Visitor Analytics</strong> — Session count in separate table, no PII</td><td><span class="tag tag-warn">Planned</span></td></tr>
+    </table>
+  </div>
+
+  <h2>4. Design Patterns</h2>
+  <div class="card">
+    <ul>
+      <li><strong>Facade Pattern</strong> — <code>lib/session.ts</code>: single interface for all cookie/session operations</li>
+      <li><strong>Repository Pattern</strong> — <code>lib/supabase.ts</code>: all DB access through one typed client</li>
+      <li><strong>Strategy Pattern</strong> — <code>MarkdownRenderer.tsx</code>: auto-routes content to Mermaid / KaTeX / Prism</li>
+      <li><strong>Observer Pattern</strong> — SWR hooks subscribe to query results; cache updates propagate automatically</li>
+      <li><strong>Singleton Pattern</strong> — <code>lib/gemini.ts</code>: Xenova pipeline loads once, reused for all embed calls</li>
+      <li><strong>Factory Pattern</strong> — <code>lib/logger.ts</code>: structured JSON log factory across all severity levels</li>
+    </ul>
+  </div>
+
+  <h2>5. Non-Functional Requirements</h2>
+  <div class="card">
+    <table>
+      <tr><th>Requirement</th><th>How Met</th></tr>
+      <tr><td><strong>Zero Cost</strong></td><td>All free tiers — Groq, Supabase, LlamaParse, Vercel, Xenova WASM</td></tr>
+      <tr><td><strong>Zero Local CPU/GPU</strong></td><td>LlamaParse (cloud), Groq (cloud). Only Xenova WASM runs locally — tiny 23MB model, &lt;1% CPU</td></tr>
+      <tr><td><strong>Data Privacy</strong></td><td>All chunks scoped to session_id. RLS policy on Supabase blocks cross-session access</td></tr>
+      <tr><td><strong>No Auth Required</strong></td><td>UUID cookie session — no email, no password, no Google OAuth</td></tr>
+      <tr><td><strong>Performance</strong></td><td>SWR caches repeated queries (0ms after first call). pgvector indexed for fast similarity search</td></tr>
+      <tr><td><strong>Auto Cleanup</strong></td><td>pg_cron deletes chunks older than 24h every hour automatically</td></tr>
+    </table>
+  </div>
+</body>
+</html>
