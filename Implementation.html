@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Exam Prep — Implementation Guide</title>
+  <style>
+    :root {
+      --bg: #0F172A; --surface: #1E293B; --border: #334155;
+      --text: #F8FAFC; --muted: #94A3B8; --clarity: #2DD4BF;
+      --math: #F472B6; --danger: #F87171; --warn: #FBBF24;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; line-height: 1.7; padding: 2rem; }
+    nav { display: flex; gap: 1.5rem; flex-wrap: wrap; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: 2.5rem; }
+    nav a { color: var(--muted); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+    nav a:hover, nav a.active { color: var(--clarity); }
+    h1 { font-size: 2rem; font-weight: 800; margin-bottom: 0.4rem; }
+    h1 span { color: var(--clarity); }
+    .meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 3rem; }
+    h2 { font-size: 1.2rem; font-weight: 700; color: var(--clarity); margin: 2.5rem 0 1rem; border-left: 3px solid var(--clarity); padding-left: 0.75rem; }
+    h3 { font-size: 0.95rem; font-weight: 700; color: var(--math); margin: 1.25rem 0 0.5rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .step { border-left: 3px solid var(--warn); padding: 0.1rem 0 0.1rem 1rem; margin-bottom: 1.25rem; }
+    .step h3 { color: var(--warn); }
+    pre { background: #0a0f1e; border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; overflow-x: auto; font-family: ui-monospace, monospace; font-size: 0.82rem; color: #a5f3fc; line-height: 1.6; margin: 0.75rem 0; }
+    code { font-family: ui-monospace, monospace; background: rgba(45,212,191,.1); border: 1px solid rgba(45,212,191,.2); padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.85em; color: var(--clarity); }
+    p { color: var(--muted); margin-bottom: 0.6rem; }
+    ul { color: var(--muted); padding-left: 1.5rem; }
+    li { margin-bottom: 0.35rem; }
+    .note { background: rgba(251,191,36,.07); border: 1px solid rgba(251,191,36,.25); border-radius: 8px; padding: 0.75rem 1rem; color: var(--warn); font-size: 0.88rem; margin: 0.75rem 0; }
+    .done { background: rgba(45,212,191,.07); border: 1px solid rgba(45,212,191,.25); border-radius: 8px; padding: 0.75rem 1rem; color: var(--clarity); font-size: 0.88rem; margin: 0.75rem 0; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="ProjectPlan.html">Project Plan</a>
+    <a href="HLD.html">HLD</a>
+    <a href="LLD.html">LLD</a>
+    <a href="Implementation.html" class="active">Implementation Guide</a>
+    <a href="ImplementationStatus.html">Status Tracker</a>
+  </nav>
+
+  <h1>AI Exam Prep <span>Focal Engine</span></h1>
+  <p class="meta">Implementation Guide · Version 2.0 · July 2026</p>
+
+  <!-- ══ PHASE 1 ══════════════════════════════════════════════════════ -->
+  <h2>Phase 1 — Project Scaffolding ✅</h2>
+  <div class="card">
+    <div class="done">✓ Complete — Next.js app created, all dependencies installed, Deep Work design tokens configured.</div>
+    <h3>Dependencies Installed</h3>
+    <pre>npm install @supabase/supabase-js @google/generative-ai groq-sdk
+npm install llamaindex @llamaindex/core @llamaindex/readers
+npm install @xenova/transformers swr</pre>
+    <h3>Environment Variables (.env.local)</h3>
+    <pre>NEXT_PUBLIC_SUPABASE_URL=https://&lt;project&gt;.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+GROQ_API_KEY=gsk_...
+LLAMA_CLOUD_API_KEY=llx-...</pre>
+    <div class="note">⚠ No GEMINI_API_KEY needed anymore — embeddings are handled locally via Xenova WASM.</div>
+  </div>
+
+  <!-- ══ PHASE 2 ══════════════════════════════════════════════════════ -->
+  <h2>Phase 2 — Supabase Schema Setup ✅</h2>
+  <div class="card">
+    <div class="done">✓ Complete — pgvector enabled, document_chunks table created and verified working.</div>
+    <h3>Run in Supabase SQL Editor</h3>
+    <pre>-- 1. Enable extensions
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- 2. Main chunks table (session-scoped)
+CREATE TABLE document_chunks (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id    text NOT NULL,
+  document_name text NOT NULL,
+  chunk_index   int  NOT NULL,
+  content       text NOT NULL,
+  embedding     vector(384),
+  created_at    timestamp DEFAULT NOW()
+);
+CREATE INDEX idx_chunks_session ON document_chunks(session_id);
+
+-- 3. Visitor analytics (no PII)
+CREATE TABLE visitor_analytics (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id text NOT NULL,
+  created_at timestamp DEFAULT NOW()
+);
+
+-- 4. Session-scoped similarity search
+CREATE OR REPLACE FUNCTION match_chunks (
+  query_embedding  vector(384),
+  session_id_param text,
+  match_threshold  float,
+  match_count      int
+)
+RETURNS TABLE (id uuid, document_name text, content text, similarity float)
+LANGUAGE sql STABLE AS $$
+  SELECT id, document_name, content,
+         1 - (embedding &lt;=&gt; query_embedding) AS similarity
+  FROM   document_chunks
+  WHERE  session_id = session_id_param
+    AND  1 - (embedding &lt;=&gt; query_embedding) > match_threshold
+  ORDER  BY embedding &lt;=&gt; query_embedding
+  LIMIT  match_count;
+$$;
+
+-- 5. 24h auto-cleanup cron (enable pg_cron in Dashboard → Extensions first)
+SELECT cron.schedule(
+  'cleanup-old-sessions', '0 * * * *',
+  $$
+    DELETE FROM document_chunks   WHERE created_at &lt; NOW() - INTERVAL '24 hours';
+    DELETE FROM visitor_analytics WHERE created_at &lt; NOW() - INTERVAL '30 days';
+  $$
+);</pre>
+  </div>
+
+  <!-- ══ PHASE 3 ══════════════════════════════════════════════════════ -->
+  <h2>Phase 3 — Ingestion Pipeline ✅</h2>
+  <div class="card">
+    <div class="done">✓ Complete — PDF upload → LlamaParse → Xenova embed → Supabase store working end-to-end.</div>
+    <p>Files: <code>lib/supabase.ts</code> · <code>lib/gemini.ts</code> (Xenova) · <code>lib/chunk.ts</code> · <code>lib/logger.ts</code> · <code>app/api/upload/route.ts</code></p>
+    <h3>Flow</h3>
+    <pre>Upload file → /api/upload
+  → LlamaParse Cloud (PDF/PPT → Markdown)
+  → chunkMarkdown() (heading-aware, 500-word max)
+  → embedText() via Xenova WASM (384-dim)
+  → supabase.from('document_chunks').insert({ session_id, ... })</pre>
+  </div>
+
+  <!-- ══ PHASE 4 ══════════════════════════════════════════════════════ -->
+  <h2>Phase 4 — Anonymous Session Layer 🔲</h2>
+  <div class="card">
+    <div class="step">
+      <h3>Step 1 — lib/session.ts (Facade Pattern)</h3>
+      <p>Create <code>lib/session.ts</code> — wraps all cookie read/write. Every API route calls <code>getOrCreateSessionId()</code> instead of touching cookies directly.</p>
+    </div>
+    <div class="step">
+      <h3>Step 2 — /api/session/route.ts</h3>
+      <p>POST → creates/reads session cookie, logs one row to <code>visitor_analytics</code>, returns <code>{ sessionId }</code>.</p>
+    </div>
+    <div class="step">
+      <h3>Step 3 — /api/session/delete/route.ts</h3>
+      <p>POST → deletes all <code>document_chunks</code> WHERE <code>session_id = ?</code>, clears cookie. Returns <code>{ deleted: N }</code>.</p>
+    </div>
+    <div class="step">
+      <h3>Step 4 — Update Upload + Explain routes</h3>
+      <p>Both routes call <code>getOrCreateSessionId()</code> and pass it to Supabase queries so all data is session-scoped.</p>
+    </div>
+    <div class="step">
+      <h3>Step 5 — DeleteSessionButton.tsx component</h3>
+      <p>A red "Clear Session" button in the sidebar that calls <code>/api/session/delete</code> and resets UI state.</p>
+    </div>
+  </div>
+
+  <!-- ══ PHASE 5 ══════════════════════════════════════════════════════ -->
+  <h2>Phase 5 — SSE Streaming + Native Fetch 🔲</h2>
+  <div class="card">
+    <div class="step">
+      <h3>Step 1 — lib/stream-adapter.ts</h3>
+      <p>Helper wrapper for <code>groq-sdk</code> stream conversion into native <code>ReadableStream</code> (SSE format: <code>data: ...\n\n</code>).</p>
+    </div>
+    <div class="step">
+      <h3>Step 2 — hooks/useStreamChat.ts</h3>
+      <p>Custom hook managing chat history state + <code>fetch</code> logic with <code>TextDecoder</code> loop to processSSE chunks.</p>
+    </div>
+    <div class="step">
+      <h3>Step 3 — /api/chat/route.ts</h3>
+      <p>Refactored to stream directly via <code>TextEncoder()</code> using the <code>stream-adapter</code>, removing <code>ai-sdk</code> dependency completely.</p>
+    </div>
+    <div class="step">
+      <h3>Step 4 — ChatPanel.tsx</h3>
+      <p>Interface update: replace <code>useChat</code> hook with <code>useStreamChat</code>.</p>
+    </div>
+  </div>
+
+  <!-- ══ PHASE 6 ══════════════════════════════════════════════════════ -->
+  <h2>Phase 6 — Visualization Rendering ✅</h2>
+  <div class="card">
+    <div class="done">✓ Complete — Markdown rendering pipeline running perfectly with Tailwind typography formatting, Mermaid parsing, and KaTeX via Rehype/Remark. (react-syntax-highlighter skipped in favor of Tailwind's prose defaults).</div>
+    <div class="step">
+      <h3>Step 1 — Install rendering libs</h3>
+      <pre>npm install mermaid katex rehype-katex remark-math react-markdown</pre>
+    </div>
+    <div class="step">
+      <h3>Step 2 — MermaidRenderer.tsx</h3>
+      <p>Detects <code>```mermaid</code> blocks in AI output. Calls <code>mermaid.render()</code> and injects the resulting SVG inline.</p>
+    </div>
+    <div class="step">
+      <h3>Step 3 — MarkdownRenderer.tsx (Strategy Pattern)</h3>
+      <p>Parses AI response, splits into blocks by type (mermaid / math / code / prose), delegates each block to the right renderer component.</p>
+    </div>
+    <div class="step">
+      <h3>Step 4 — Update Groq prompt in /api/explain</h3>
+      <p>Instruct Groq to output Mermaid for process flows/diagrams, <code>$$...$$</code> for math, and standard markdown otherwise.</p>
+    </div>
+  </div>
+
+  <!-- ══ PHASE 7 ══════════════════════════════════════════════════════ -->
+  <h2>Phase 7 — MCQ Exam Simulator 🔲</h2>
+  <div class="card">
+    <div class="step">
+      <h3>Step 1 — /api/quiz/route.ts</h3>
+      <p>Accepts <code>{ topic, count }</code>. Retrieves relevant chunks via <code>match_chunks()</code>, prompts Groq to return a strict JSON array of MCQ objects. Validates JSON before returning.</p>
+    </div>
+    <div class="step">
+      <h3>Step 2 — MCQQuiz.tsx component</h3>
+      <p>Renders timed exam UI: question, 4 options, countdown timer. On submit: shows score, highlights correct answers, lists weak topics.</p>
+    </div>
+  </div>
+
+  <!-- ══ PHASE 8 ══════════════════════════════════════════════════════ -->
+  <h2>Phase 8 — Deploy to Vercel 🔲</h2>
+  <div class="card">
+    <div class="step">
+      <h3>Step 1 — Push to GitHub</h3>
+      <pre>git init &amp;&amp; git add . &amp;&amp; git commit -m "feat: initial AI exam prep app"
+git remote add origin https://github.com/&lt;you&gt;/ai-exam-prep.git
+git push -u origin main</pre>
+    </div>
+    <div class="step">
+      <h3>Step 2 — Import to Vercel</h3>
+      <p>Go to <a href="https://vercel.com" style="color:var(--clarity)">vercel.com</a> → New Project → Import from GitHub → Add all env vars from <code>.env.local</code>.</p>
+    </div>
+  </div>
+</body>
+</html>
